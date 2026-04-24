@@ -2,19 +2,23 @@ const express      = require('express');
 const multer       = require('multer');
 const path         = require('path');
 const fs           = require('fs');
+const os           = require('os');
 const { execSync } = require('child_process');
-const ffmpegPath   = require('ffmpeg-static');  // bundled FFmpeg binary
+const ffmpegPath   = require('ffmpeg-static');
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// ── On Vercel, only /tmp is writable. Locally, use project folders. ──────────
-const TMP        = '/tmp';
-const INTRO      = path.join(__dirname, 'intro.mp4');
-const OUTRO      = path.join(__dirname, 'outro.mp4');
+// os.tmpdir() returns the correct temp folder on every OS:
+//   Windows  → C:\Users\Admin\AppData\Local\Temp
+//   Linux    → /tmp
+//   Vercel   → /tmp
+const TMP   = os.tmpdir();
+const INTRO = path.join(__dirname, 'intro.mp4');
+const OUTRO = path.join(__dirname, 'outro.mp4');
 
-// multer stores uploads in /tmp
+// multer stores uploads in the OS temp folder
 const storage = multer.diskStorage({
   destination: (req, file, cb) => cb(null, TMP),
   filename:    (req, file, cb) => cb(null, `upload_${Date.now()}${path.extname(file.originalname)}`)
@@ -24,7 +28,7 @@ const upload = multer({ storage });
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 function ffmpeg(cmd) {
-  // Use bundled ffmpeg-static binary so it works on Vercel with no install
+  // Wrap ffmpegPath in quotes to handle spaces in Windows paths
   execSync(`"${ffmpegPath}" ${cmd}`, { stdio: 'inherit' });
 }
 
@@ -86,9 +90,9 @@ app.post('/upload', upload.single('video'), (req, res) => {
   const filelistPath  = path.join(TMP, `filelist_${ts}.txt`);
 
   try {
-    console.log('Normalizing intro…');    normalize(INTRO,       normIntro);
-    console.log('Normalizing upload…');   normalize(uploadedRaw, normUser);
-    console.log('Normalizing outro…');    normalize(OUTRO,       normOutro);
+    console.log('Normalizing intro…');   normalize(INTRO,       normIntro);
+    console.log('Normalizing upload…');  normalize(uploadedRaw, normUser);
+    console.log('Normalizing outro…');   normalize(OUTRO,       normOutro);
 
     if (name && specialization && city) {
       console.log('Adding text overlay…');
@@ -97,27 +101,27 @@ app.post('/upload', upload.single('video'), (req, res) => {
       fs.copyFileSync(normUser, processedUser);
     }
 
+    // Build filelist with properly escaped paths for FFmpeg concat
+    const escPath = p => p.replace(/\\/g, '/');   // FFmpeg needs forward slashes even on Windows
     fs.writeFileSync(filelistPath, [
-      `file '${normIntro}'`,
-      `file '${processedUser}'`,
-      `file '${normOutro}'`
+      `file '${escPath(normIntro)}'`,
+      `file '${escPath(processedUser)}'`,
+      `file '${escPath(normOutro)}'`
     ].join('\n'));
 
     console.log('Concatenating…');
     ffmpeg(`-y -f concat -safe 0 -i "${filelistPath}" -c copy "${outputFile}"`);
 
-    // Clean up temp files (keep output)
+    // Cleanup temp files except final output
     [normIntro, normUser, processedUser, normOutro, filelistPath, uploadedRaw]
       .forEach(f => { try { fs.unlinkSync(f); } catch (_) {} });
 
-    // Stream the final video back directly — no static /outputs folder needed
+    // Stream final video directly to browser
     res.setHeader('Content-Type', 'video/mp4');
     res.setHeader('Content-Disposition', `attachment; filename="merged_${ts}.mp4"`);
     const stream = fs.createReadStream(outputFile);
     stream.pipe(res);
-    stream.on('end', () => {
-      try { fs.unlinkSync(outputFile); } catch (_) {}
-    });
+    stream.on('end', () => { try { fs.unlinkSync(outputFile); } catch (_) {} });
 
   } catch (err) {
     console.error('Processing error:', err.message);
@@ -128,4 +132,4 @@ app.post('/upload', upload.single('video'), (req, res) => {
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => console.log(`Server running on http://localhost:${PORT}`));
 
-module.exports = app; // needed for Vercel
+module.exports = app;
