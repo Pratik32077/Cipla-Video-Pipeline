@@ -1,0 +1,13 @@
+node_modules/
+uploads/
+outputs/
+normalized/
+*.log
+.DS_Store
+filelist.txt
+filelist_*.txt
+temp_*.mp4
+processed_*.mp4
+user_*.mp4
+intro_*.mp4
+outro_*.mp4

@@ -1,0 +1,9 @@
+run = "npm install && node index.js"
+language = "nodejs"
+
+[nix]
+channel = "stable-24_05"
+
+[[ports]]
+localPort = 3000
+externalPort = 80

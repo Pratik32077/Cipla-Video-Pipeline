@@ -1,0 +1,230 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Video Merger</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: Arial, sans-serif;
+      background: #1a1a2e;
+      color: #eee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background: #16213e;
+      border: 1px solid #0f3460;
+      border-radius: 12px;
+      padding: 36px 40px;
+      width: 100%;
+      max-width: 520px;
+      text-align: center;
+    }
+    h1 { font-size: 1.6rem; margin-bottom: 6px; color: #e94560; }
+    p.subtitle { font-size: 0.85rem; color: #888; margin-bottom: 24px; }
+    .order-badge {
+      display: flex;
+      justify-content: center;
+      gap: 8px;
+      margin-bottom: 28px;
+      font-size: 0.8rem;
+      flex-wrap: wrap;
+    }
+    .order-badge span { background: #0f3460; border-radius: 20px; padding: 4px 12px; color: #a8d8ea; }
+    .order-badge .arrow { color: #e94560; line-height: 1.8; }
+    .section-label {
+      text-align: left;
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: #a8d8ea;
+      margin-bottom: 8px;
+      margin-top: 20px;
+    }
+    .input-group { display: flex; flex-direction: column; gap: 10px; }
+    input[type="text"] {
+      width: 100%;
+      padding: 10px 14px;
+      background: #0d1b2a;
+      border: 1px solid #0f3460;
+      border-radius: 8px;
+      color: #eee;
+      font-size: 0.95rem;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    input[type="text"]:focus { border-color: #e94560; }
+    input[type="text"]::placeholder { color: #555; }
+    #previewBadge {
+      margin-top: 10px;
+      padding: 7px 14px;
+      background: #0d1b2a;
+      border: 1px dashed #0f3460;
+      border-radius: 6px;
+      font-size: 0.82rem;
+      color: #f0a500;
+      min-height: 32px;
+      text-align: center;
+    }
+    input[type="file"] {
+      display: block;
+      width: 100%;
+      padding: 10px;
+      border: 2px dashed #0f3460;
+      border-radius: 8px;
+      background: #0d1b2a;
+      color: #ccc;
+      cursor: pointer;
+    }
+    button#uploadBtn {
+      width: 100%;
+      padding: 13px;
+      background: #e94560;
+      color: white;
+      border: none;
+      border-radius: 8px;
+      font-size: 1rem;
+      cursor: pointer;
+      transition: background 0.2s;
+      margin-top: 20px;
+    }
+    button#uploadBtn:hover:not(:disabled) { background: #c73652; }
+    button#uploadBtn:disabled { background: #555; cursor: not-allowed; }
+    #status { margin-top: 20px; font-size: 0.9rem; color: #f0a500; min-height: 20px; }
+    #progressWrap { display: none; margin-top: 14px; background: #0d1b2a; border-radius: 20px; height: 6px; overflow: hidden; }
+    #progressBar { height: 100%; width: 0%; background: #e94560; border-radius: 20px; transition: width 0.4s ease; }
+    #result { margin-top: 24px; display: none; }
+    #result video { width: 100%; border-radius: 8px; border: 1px solid #0f3460; margin-bottom: 12px; }
+    #result a { display: inline-block; padding: 9px 24px; background: #0f3460; color: #a8d8ea; border-radius: 6px; text-decoration: none; font-size: 0.9rem; }
+    #result a:hover { background: #1a4a8a; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <h1>🎬 Video Merger</h1>
+  <p class="subtitle">Fill in the details, upload your clip — we handle the rest.</p>
+
+  <div class="order-badge">
+    <span>intro.mp4</span>
+    <span class="arrow">→</span>
+    <span>your video + text</span>
+    <span class="arrow">→</span>
+    <span>outro.mp4</span>
+  </div>
+
+  <div class="section-label">👤 Doctor Details (text overlay)</div>
+  <div class="input-group">
+    <input type="text" id="nameInput" placeholder="Name  e.g. Rajesh Sharma"       oninput="updatePreview()" />
+    <input type="text" id="specInput" placeholder="Specialization  e.g. Cardiologist" oninput="updatePreview()" />
+    <input type="text" id="cityInput" placeholder="City  e.g. Mumbai"               oninput="updatePreview()" />
+  </div>
+  <div id="previewBadge">Preview will appear here…</div>
+
+  <div class="section-label" style="margin-top:22px;">🎥 Upload Video</div>
+  <input type="file" id="videoInput" accept="video/*" />
+
+  <button id="uploadBtn" onclick="uploadVideo()">Merge Videos</button>
+
+  <div id="status"></div>
+  <div id="progressWrap"><div id="progressBar"></div></div>
+
+  <div id="result">
+    <video id="videoPlayer" controls></video>
+    <a id="downloadLink" download>⬇ Download Merged Video</a>
+  </div>
+</div>
+
+<script>
+  function updatePreview() {
+    const name = document.getElementById('nameInput').value.trim();
+    const spec = document.getElementById('specInput').value.trim();
+    const city = document.getElementById('cityInput').value.trim();
+    const badge = document.getElementById('previewBadge');
+    if (name || spec || city) {
+      badge.textContent = `Dr ${name||'___'} | ${spec||'___'} | ${city||'___'}`;
+      badge.style.color = '#a8d8ea';
+    } else {
+      badge.textContent = 'Preview will appear here…';
+      badge.style.color = '#f0a500';
+    }
+  }
+
+  let progressInterval = null;
+  function startProgress() {
+    const bar = document.getElementById('progressBar');
+    document.getElementById('progressWrap').style.display = 'block';
+    bar.style.width = '0%';
+    let pct = 0;
+    progressInterval = setInterval(() => {
+      if (pct < 90) { pct += Math.random() * 4; bar.style.width = pct + '%'; }
+    }, 500);
+  }
+  function finishProgress() {
+    clearInterval(progressInterval);
+    const bar = document.getElementById('progressBar');
+    bar.style.width = '100%';
+    setTimeout(() => { document.getElementById('progressWrap').style.display = 'none'; bar.style.width = '0%'; }, 800);
+  }
+
+  async function uploadVideo() {
+    const fileInput = document.getElementById('videoInput');
+    const name      = document.getElementById('nameInput').value.trim();
+    const spec      = document.getElementById('specInput').value.trim();
+    const city      = document.getElementById('cityInput').value.trim();
+    const status    = document.getElementById('status');
+    const result    = document.getElementById('result');
+    const btn       = document.getElementById('uploadBtn');
+
+    if (!fileInput.files[0]) {
+      status.style.color = '#e94560';
+      status.textContent = '⚠️ Please select a video file.';
+      return;
+    }
+    if (!name || !spec || !city) {
+      status.style.color = '#e94560';
+      status.textContent = '⚠️ Please fill in Name, Specialization and City.';
+      return;
+    }
+
+    result.style.display = 'none';
+    status.style.color   = '#f0a500';
+    status.textContent   = '⏳ Processing… this may take a moment.';
+    btn.disabled         = true;
+    startProgress();
+
+    const formData = new FormData();
+    formData.append('video',          fileInput.files[0]);
+    formData.append('name',           name);
+    formData.append('specialization', spec);
+    formData.append('city',           city);
+
+    try {
+      const res  = await fetch('/upload', { method: 'POST', body: formData });
+      const data = await res.json();
+      finishProgress();
+      if (data.success) {
+        status.style.color = '#4caf50';
+        status.textContent = '✅ Done! Your merged video is ready.';
+        document.getElementById('videoPlayer').src = data.videoPath;
+        document.getElementById('downloadLink').href = data.videoPath;
+        result.style.display = 'block';
+      } else {
+        status.style.color = '#e94560';
+        status.textContent = '❌ Error: ' + (data.error || 'Unknown error');
+      }
+    } catch (err) {
+      finishProgress();
+      status.style.color = '#e94560';
+      status.textContent = '❌ Network error: ' + err.message;
+    } finally {
+      btn.disabled = false;
+    }
+  }
+</script>
+</body>
+</html>
