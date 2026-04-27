@@ -51,16 +51,18 @@ function addTextOverlay(inputPath, outputPath, name, specialization, city) {
     .replace(/\[/g, '\\[')
     .replace(/\]/g, '\\]');
 
-  const text = `Dr ${escape(name)} | ${escape(specialization)} | ${escape(city)}`;
+  const doctorText = `Dr ${escape(name)}`;
+  const detailText = `${escape(specialization)} | ${escape(city)}`;
 
-  const drawtext =
-    `drawtext=text='${text}':` +
-    `fontsize=32:fontcolor=white:` +
-    `box=1:boxcolor=black@0.6:boxborderw=10:` +
-    `x=(w-text_w)/2:y=50`;
+  const filterchain =
+    `drawbox=x=(w-520)/2:y=h-180:w=520:h=150:color=white@0.1:t=fill,` +
+    `drawtext=text='${doctorText}':fontsize=52:fontcolor=black:` +
+      `x=(w-text_w)/2:y=h-165,` +
+    `drawtext=text='${detailText}':fontsize=28:fontcolor=black:` +
+      `x=(w-text_w)/2:y=h-110`;
 
   ffmpeg(
-    `-y -i "${inputPath}" -vf "${drawtext}" ` +
+    `-y -i "${inputPath}" -vf "${filterchain}" ` +
     `-c:v libx264 -preset fast -crf 23 ` +
     `-c:a aac -b:a 128k -ar 44100 -ac 2 ` +
     `"${outputPath}"`
